@@ -22,6 +22,7 @@ import math
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 torch.backends.cudnn.benchmark = False
 import requests
+import pytesseract
 import time
 import re
 def parse_args():
