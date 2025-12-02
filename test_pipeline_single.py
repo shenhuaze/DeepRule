@@ -55,7 +55,7 @@ def load_net(testiter, cfg_name, data_dir, cache_dir, result_dir, cuda_id=0):
     configs["system"]["data_dir"] = data_dir
     configs["system"]["cache_dir"] = cache_dir
     configs["system"]["result_dir"] = result_dir
-    configs["system"]["tar_data_dir"] = "Cls"
+    configs["system"]["tar_data_dir"] = "cls"
     system_configs.update_config(configs["system"])
 
     train_split = system_configs.train_split
