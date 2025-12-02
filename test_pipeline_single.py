@@ -19,7 +19,7 @@ from RuleGroup.LineQuiry import GroupQuiry
 from RuleGroup.LIneMatch import GroupLine
 from RuleGroup.Pie import GroupPie
 import math
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 torch.backends.cudnn.benchmark = False
 import requests
 import time
