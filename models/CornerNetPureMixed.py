@@ -81,4 +81,4 @@ class model(kp_pure_mix):
         )
 
 loss = AELossPure(focal_loss=_neg_loss)
-from azureml.core.compute import ComputeTarget
+# from azureml.core.compute import ComputeTarget
