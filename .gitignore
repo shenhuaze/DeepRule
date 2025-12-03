@@ -1,7 +1,11 @@
 results/
+data/
+biuld/
 
 *.swp
 *.pyc
 *.o*
 *.json
 *.so
+*.png
+*.jpg
