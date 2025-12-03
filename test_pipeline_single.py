@@ -254,6 +254,7 @@ def try_math(image_path, cls_info):
 def test(image_path, debug=False, suffix=None, min_value_official=None, max_value_official=None):
     image_cls = Image.open(image_path)
     image = cv2.imread(image_path)
+    json_info = {}
     with torch.no_grad():
         results = methods['Cls'][2](image, methods['Cls'][0], methods['Cls'][1], debug=False)
         info = results[0]
@@ -262,10 +263,18 @@ def test(image_path, debug=False, suffix=None, min_value_official=None, max_valu
         plot_area = []
         image_painted, cls_info = GroupCls(image_cls, tls, brs)
         title2string, min_value, max_value = try_math(image_path, cls_info)
+        
         if min_value_official is not None:
             min_value = min_value_official
             max_value = max_value_official
-        chartinfo = [info['data_type'], cls_info, title2string, min_value, max_value]
+        chartinfo = {
+            "data_type": info["data_type"],
+            "cls_info": cls_info,
+            "title2string": title2string,
+            "min_value": min_value,
+            "max_value": max_value
+            }
+        
         if info['data_type'] == 0:
             print("Predicted as BarChart")
             results = methods['Bar'][2](image, methods['Bar'][0], methods['Bar'][1], debug=False)
@@ -276,15 +285,20 @@ def test(image_path, debug=False, suffix=None, min_value_official=None, max_valu
             else:
                 plot_area = [0, 0, 600, 400]
             image_painted, bar_data = GroupBar(image_painted, tls, brs, plot_area, min_value, max_value)
-
-            return plot_area, image_painted, bar_data, chartinfo
+            json_info["plot_area"] = plot_area
+            json_info["bar_data"] = bar_data
+            json_info["chartinfo"] = chartinfo
+        
         if info['data_type'] == 2:
             print("Predicted as PieChart")
             results = methods['Pie'][2](image, methods['Pie'][0], methods['Pie'][1], debug=False)
             cens = results[0]
             keys = results[1]
             image_painted, pie_data = GroupPie(image_painted, cens, keys)
-            return plot_area, image_painted, pie_data, chartinfo
+            json_info["plot_area"] = plot_area
+            json_info["pie_data"] = pie_data
+            json_info["chartinfo"] = chartinfo
+        
         if info['data_type'] == 1:
             print("Predicted as LineChart")
             results = methods['Line'][2](image, methods['Line'][0], methods['Line'][1], debug=False, cuda_id=1)
@@ -298,8 +312,13 @@ def test(image_path, debug=False, suffix=None, min_value_official=None, max_valu
             image_painted, quiry, keys, hybrids = GroupQuiry(image_painted, keys, hybrids, plot_area, min_value, max_value)
             results = methods['LineCls'][2](image, methods['LineCls'][0], quiry, methods['LineCls'][1], debug=False, cuda_id=1)
             line_data = GroupLine(image_painted, keys, hybrids, plot_area, results, min_value, max_value)
-            return plot_area, image_painted, line_data, chartinfo
+            json_info["plot_area"] = plot_area
+            json_info["line_data"] = line_data
+            json_info["chartinfo"] = chartinfo
 
+    return json_info
 
 if __name__ == "__main__":
-    test("OCR_temp.png")
+    image_path = "OCR_temp.png"
+    json_info_ = test(image_path)
+    json.dump(json_info_, open("test_pipeline_single.json", "w"), ensure_ascii=False, indent=4)
