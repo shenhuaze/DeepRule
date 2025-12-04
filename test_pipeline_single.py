@@ -242,8 +242,14 @@ def try_math(image_path, cls_info):
         delta_min_max = max_value-min_value
         delta_mark = min_y - max_y
         delta_plot_y = y_min - y_max
-        delta = delta_min_max/delta_mark
-        if abs(min_y-y_min)/delta_plot_y > 0.1:
+        # 防止除零错误
+        if delta_mark == 0:
+            print("Warning: delta_mark is zero, using default scaling")
+            delta = 1.0
+        else:
+            delta = delta_min_max/delta_mark
+        # 防止除零错误
+        if delta_plot_y != 0 and abs(min_y-y_min)/delta_plot_y > 0.1:
             print(abs(min_y-y_min)/delta_plot_y)
             print("Predict the lower bar")
             min_value = int(min_value + (min_y-y_min)*delta)
@@ -301,7 +307,7 @@ def test(image_path, debug=False, suffix=None, min_value_official=None, max_valu
         
         if info['data_type'] == 1:
             print("Predicted as LineChart")
-            results = methods['Line'][2](image, methods['Line'][0], methods['Line'][1], debug=False, cuda_id=1)
+            results = methods['Line'][2](image, methods['Line'][0], methods['Line'][1], debug=False, cuda_id=0)
             keys = results[0]
             hybrids = results[1]
             if 5 in cls_info.keys():
@@ -310,7 +316,7 @@ def test(image_path, debug=False, suffix=None, min_value_official=None, max_valu
                 plot_area = [0, 0, 600, 400]
             print(min_value, max_value)
             image_painted, quiry, keys, hybrids = GroupQuiry(image_painted, keys, hybrids, plot_area, min_value, max_value)
-            results = methods['LineCls'][2](image, methods['LineCls'][0], quiry, methods['LineCls'][1], debug=False, cuda_id=1)
+            results = methods['LineCls'][2](image, methods['LineCls'][0], quiry, methods['LineCls'][1], debug=False, cuda_id=0)
             line_data = GroupLine(image_painted, keys, hybrids, plot_area, results, min_value, max_value)
             json_info["plot_area"] = plot_area
             json_info["line_data"] = line_data
@@ -318,7 +324,16 @@ def test(image_path, debug=False, suffix=None, min_value_official=None, max_valu
 
     return json_info
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Test DeepRule")
+    parser.add_argument("--image_path", dest="image_path", help="test image", default="OCR_temp.png", type=str)
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
-    image_path = "OCR_temp.png"
+    args = parse_args()
+    image_path = args.image_path
     json_info_ = test(image_path)
-    json.dump(json_info_, open("test_pipeline_single.json", "w"), ensure_ascii=False, indent=4)
+    json.dump(json_info_, open(image_path.split(".")[0]+".json", "w"), ensure_ascii=False, indent=4)
