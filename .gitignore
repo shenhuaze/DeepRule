@@ -2,6 +2,7 @@ results/
 data/
 biuld/
 
+.DS_Store
 *.swp
 *.pyc
 *.o*
