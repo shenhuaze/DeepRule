@@ -4,6 +4,7 @@ import json
 import torch
 import pprint
 import argparse
+import glob
 
 import matplotlib
 matplotlib.use("Agg")
@@ -25,24 +26,6 @@ import requests
 import pytesseract
 import time
 import re
-def parse_args():
-    parser = argparse.ArgumentParser(description="Test CornerNet")
-    parser.add_argument("--cfg_file", dest="cfg_file", help="config file", default="CornerNetLine", type=str)
-    parser.add_argument("--testiter", dest="testiter",
-                        help="test at iteration i",
-                        default=50000, type=int)
-    parser.add_argument("--split", dest="split",
-                        help="which split to use",
-                        default="validation", type=str)
-    parser.add_argument('--cache_path', dest="cache_path", type=str)
-    parser.add_argument('--result_path', dest="result_path", type=str)
-    parser.add_argument('--tar_data_path', dest="tar_data_path", type=str)
-    parser.add_argument("--suffix", dest="suffix", default=None, type=str)
-    parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--data_dir", dest="data_dir", default="data/linedata(1028)", type=str)
-    parser.add_argument("--image_dir", dest="image_dir", default="C:/work/linedata(1028)/line/images/test2019/f4b5dac780890c2ca9f43c3fe4cc991a_d3d3LmVwc2lsb24uaW5zZWUuZnIJMTk1LjEwMS4yNTEuMTM2.xls-3-0.png", type=str)
-    args = parser.parse_args()
-    return args
 
 def make_dirs(directories):
     for directory in directories:
@@ -328,13 +311,101 @@ def test(image_path, debug=False, suffix=None, min_value_official=None, max_valu
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Test DeepRule")
-    parser.add_argument("--image_path", dest="image_path", help="test image", default="OCR_temp.png", type=str)
+    parser.add_argument("--image_file", dest="image_file", help="single image file to process", default=None, type=str)
+    parser.add_argument("--image_dir", dest="image_dir", help="directory containing images to process", default=None, type=str)
+    parser.add_argument("--debug", action="store_true", help="enable debug mode")
     args = parser.parse_args()
+
+    # 检查参数
+    if args.image_file is None and args.image_dir is None:
+        raise ValueError("必须指定 --image_file 或 --image_dir 参数")
+    if args.image_file is not None and args.image_dir is not None:
+        raise ValueError("不能同时指定 --image_file 和 --image_dir 参数")
+
     return args
+
+
+def get_image_files(directory):
+    """获取目录中的所有图片文件"""
+    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
+    image_files = []
+
+    for ext in image_extensions:
+        # 支持大小写
+        image_files.extend(glob.glob(os.path.join(directory, f'*{ext}')))
+        image_files.extend(glob.glob(os.path.join(directory, f'*{ext.upper()}')))
+
+    return sorted(image_files)
+
+
+def process_single_image(image_path, debug=False, output_dir=None):
+    """处理单张图片"""
+    try:
+        print(f"正在处理图片: {image_path}")
+        json_info_ = test(image_path, debug=debug)
+
+        # 生成输出文件路径
+        image_name = os.path.splitext(os.path.basename(image_path))[0]
+
+        if output_dir:
+            # 批量处理模式：输出到指定目录
+            make_dirs([output_dir])
+            output_path = os.path.join(output_dir, f"{image_name}_extracted.json")
+        else:
+            # 单张图片模式：输出到原图所在目录
+            output_path = os.path.splitext(image_path)[0] + "_extracted.json"
+
+        # 保存JSON文件
+        with open(output_path, "w", encoding='utf-8') as f:
+            json.dump(json_info_, f, ensure_ascii=False, indent=4)
+
+        print(f"处理完成，结果已保存到: {output_path}")
+        return True
+
+    except Exception as e:
+        print(f"处理图片 {image_path} 时出错: {str(e)}")
+        return False
 
 
 if __name__ == "__main__":
     args = parse_args()
-    image_path = args.image_path
-    json_info_ = test(image_path)
-    json.dump(json_info_, open(image_path.split(".")[0]+".json", "w"), ensure_ascii=False, indent=4)
+
+    if args.image_file:
+        # 单张图片模式
+        print(f"单张图片模式: {args.image_file}")
+        process_single_image(args.image_file, debug=args.debug)
+
+    elif args.image_dir:
+        # 批量处理模式
+        print(f"批量处理模式: {args.image_dir}")
+
+        if not os.path.exists(args.image_dir):
+            print(f"错误: 目录 {args.image_dir} 不存在")
+            exit(1)
+
+        # 创建输出目录
+        # 移除路径末尾的斜杠
+        clean_path = args.image_dir.rstrip(os.sep)
+        parent_dir = os.path.dirname(clean_path)
+        dir_name = os.path.basename(clean_path)
+        output_dir = os.path.join(parent_dir, dir_name + "_extracted")
+
+        # 获取所有图片文件
+        image_files = get_image_files(args.image_dir)
+
+        if not image_files:
+            print(f"在目录 {args.image_dir} 中未找到图片文件")
+            exit(1)
+
+        print(f"找到 {len(image_files)} 张图片")
+        print(f"输出目录: {output_dir}")
+
+        # 批量处理
+        success_count = 0
+        for i, image_path in enumerate(image_files, 1):
+            print(f"\n进度: {i}/{len(image_files)}")
+            if process_single_image(image_path, debug=args.debug, output_dir=output_dir):
+                success_count += 1
+
+        print(f"\n批量处理完成! 成功处理 {success_count}/{len(image_files)} 张图片")
+        print(f"所有结果已保存到: {output_dir}")
